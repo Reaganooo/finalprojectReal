@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spin the Wheel - Continents</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #f5f7fa, #dfe9f3);
+    }
+
+    .app {
+      text-align: center;
+      padding: 24px;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+      font-size: 2rem;
+    }
+
+    p {
+      margin-top: 0;
+      color: #444;
+    }
+
+    .wheel-wrapper {
+      position: relative;
+      width: 420px;
+      height: 460px;
+      margin: 0 auto 20px;
+    }
+
+    .pointer {
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 20px solid transparent;
+      border-right: 20px solid transparent;
+      border-top: 40px solid #222;
+      z-index: 10;
+    }
+
+    canvas {
+      display: block;
+      margin: 40px auto 0;
+      background: white;
+      border-radius: 50%;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    }
+
+    .buttons {
+      margin-top: 10px;
+    }
+
+    button,
+    .home-btn {
+      display: inline-block;
+      margin: 8px 6px 0;
+      padding: 12px 24px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 999px;
+      background: #222;
+      color: white;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+
+    button:hover,
+    .home-btn:hover {
+      transform: scale(1.04);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .result {
+      margin-top: 18px;
+      font-size: 1.2rem;
+      font-weight: bold;
+      min-height: 30px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>Spin the Wheel</h1>
+    <p>Click the button to pick a continent.</p>
+
+    <div class="wheel-wrapper">
+      <div class="pointer"></div>
+      <canvas id="wheel" width="380" height="380"></canvas>
+    </div>
+
+    <div class="buttons">
+      <button id="spinBtn">Spin</button>
+      <a href="index.html" class="home-btn">Back to Home</a>
+    </div>
+
+    <div class="result" id="result">Result: -</div>
+  </div>
+
+  <script>
+    const continents = [
+      'Asia',
+      'Africa',
+      'North America',
+      'South America',
+      'Antarctica',
+      'Europe',
+      'Australia'
+    ];
+
+    const colors = [
+      '#ff6b6b',
+      '#f7b267',
+      '#ffd93d',
+      '#6bcB77',
+      '#4d96ff',
+      '#845ec2',
+      '#ff8fab'
+    ];
+
+    const canvas = document.getElementById('wheel');
+    const ctx = canvas.getContext('2d');
+    const spinBtn = document.getElementById('spinBtn');
+    const resultEl = document.getElementById('result');
+
+    const size = canvas.width;
+    const center = size / 2;
+    const radius = center - 10;
+    const sliceAngle = (Math.PI * 2) / continents.length;
+
+    let currentRotation = 0;
+    let isSpinning = false;
+
+    function drawWheel(rotation = 0) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.save();
+      ctx.translate(center, center);
+      ctx.rotate(rotation);
+
+      for (let i = 0; i < continents.length; i++) {
+        const startAngle = i * sliceAngle;
+        const endAngle = startAngle + sliceAngle;
+
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, radius, startAngle, endAngle);
+        ctx.closePath();
+        ctx.fillStyle = colors[i % colors.length];
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        ctx.save();
+        ctx.rotate(startAngle + sliceAngle / 2);
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#111';
+        ctx.font = 'bold 18px Arial';
+        ctx.fillText(continents[i], radius - 18, 6);
+        ctx.restore();
+      }
+
+      ctx.beginPath();
+      ctx.arc(0, 0, 24, 0, Math.PI * 2);
+      ctx.fillStyle = '#222';
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function normalizeRotation(angle) {
+      return ((angle % (Math.PI * 2)) + (Math.PI * 2)) % (Math.PI * 2);
+    }
+
+    function spinWheel() {
+      if (isSpinning) return;
+
+      isSpinning = true;
+      spinBtn.disabled = true;
+      resultEl.textContent = 'Result: Spinning...';
+
+      const winnerIndex = Math.floor(Math.random() * continents.length);
+
+      const centerOfWinningSlice = winnerIndex * sliceAngle + sliceAngle / 2;
+      const pointerAngle = -Math.PI / 2;
+
+      const extraSpins = (5 + Math.random() * 2) * Math.PI * 2;
+
+      // Correct target rotation so the chosen slice ends exactly under the pointer
+      const targetRotation = pointerAngle - centerOfWinningSlice;
+      const finalRotation = targetRotation + extraSpins;
+
+      const startRotation = currentRotation;
+      const duration = 4200;
+      const startTime = performance.now();
+
+      function animate(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 4);
+        const rotation = startRotation + (finalRotation - startRotation) * eased;
+
+        drawWheel(rotation);
+
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          currentRotation = normalizeRotation(finalRotation);
+          drawWheel(currentRotation);
+          resultEl.textContent = 'Result: ' + continents[winnerIndex];
+          isSpinning = false;
+          spinBtn.disabled = false;
+        }
+      }
+
+      requestAnimationFrame(animate);
+    }
+
+    spinBtn.addEventListener('click', spinWheel);
+    drawWheel(currentRotation);
+  </script>
+</body>
+</html>
